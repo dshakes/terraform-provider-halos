@@ -1,0 +1,9 @@
+/dist/
+/bin/
+/terraform-provider-halos
+*.test
+*.out
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate*
+crash.log

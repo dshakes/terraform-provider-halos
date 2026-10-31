@@ -1,0 +1,89 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # Branch or tag of github.com/dshakes/halos that holds the API (service tokens,
+  # ADR-0036/0037) the acceptance tests run against.
+  HALOS_REF: main
+  OPENTOFU_VERSION: "1.12.0"
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+
+  docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.OPENTOFU_VERSION }}
+          tofu_wrapper: false
+      - name: docs are generated and up to date
+        run: |
+          # tfplugindocs looks for a binary named terraform and a registry.terraform.io address.
+          printf '%s\n' '#!/bin/sh' \
+            'if [ "$1" = init ] && [ -d plugins/registry.terraform.io ] && [ ! -e plugins/registry.opentofu.org ]; then cp -R plugins/registry.terraform.io plugins/registry.opentofu.org; fi' \
+            'if [ "$1" = providers ] && [ "$2" = schema ]; then tofu "$@" | sed "s#registry.opentofu.org#registry.terraform.io#g"; exit 0; fi' \
+            'exec tofu "$@"' > "$RUNNER_TEMP/terraform"
+          chmod +x "$RUNNER_TEMP/terraform"
+          PATH="$RUNNER_TEMP:$PATH" go generate ./...
+          git diff --exit-code -- docs
+
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go test -race -count=1 ./...
+
+  acceptance:
+    runs-on: ubuntu-24.04
+    needs: [unit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.OPENTOFU_VERSION }}
+          tofu_wrapper: false
+      - name: build halo-server
+        run: |
+          git clone --depth 1 --branch "$HALOS_REF" https://github.com/dshakes/halos.git "$RUNNER_TEMP/halos"
+          (cd "$RUNNER_TEMP/halos" && go build -o "$RUNNER_TEMP/halo-server" ./cmd/halo-server)
+      - name: acceptance tests (OpenTofu)
+        env:
+          TF_ACC: "1"
+          TF_ACC_TERRAFORM_PATH: /usr/local/bin/tofu
+          TF_ACC_PROVIDER_HOST: registry.opentofu.org
+          TF_ACC_PROVIDER_NAMESPACE: hashicorp
+        run: |
+          export HALOS_SERVER_BIN="$RUNNER_TEMP/halo-server"
+          export HALOS_POLICY_DIR="$RUNNER_TEMP/halos/examples/acme-corp"
+          export TF_ACC_TERRAFORM_PATH="$(command -v tofu)"
+          go test -race -count=1 -v ./internal/provider/

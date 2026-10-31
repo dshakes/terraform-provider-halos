@@ -101,7 +101,7 @@ The tests build `halo-server` and the demo mock IdP (`deploy/compose/mockidp`) f
 run `halo-server` with real authentication pointed at the mock IdP, log in through the OIDC authorization-code flow with a
 cookie jar to get a real admin session, and use it to mint a real admin and a real viewer `halo_sat_` token. The provider then
 runs with token plus session, as documented. (Break-glass cannot stand in: halo-server refuses to create tokens for it.)
-mockidp hard-codes `:8080`, so the tests build it with `go build -overlay` swapping only that address for `$LISTEN`.
+mockidp's listen address is set with `LISTEN` (Halos fb7cc38 or later).
 
 Real-auth cases: garbage and revoked tokens get 401, a viewer token gets 403 on list, revoke and create, and token plus
 session behave as above (create uses the session, everything else the token).

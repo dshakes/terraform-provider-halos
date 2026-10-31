@@ -23,8 +23,7 @@ package provider
 // provider then runs with token + session, as documented. (Break-glass cannot
 // stand in: the server refuses to create tokens for it.)
 //
-// mockidp listens on a hard-coded :8080; it is built with `go build -overlay`
-// replacing only that address with $LISTEN, so the Halos tree is not modified.
+// mockidp's listen address is set with LISTEN (Halos fb7cc38 or later).
 
 import (
 	"context"
@@ -179,24 +178,15 @@ func startStack() (func(), error) {
 	if err := build(src, serverBin, "./cmd/halo-server"); err != nil {
 		return stop, err
 	}
-	// mockidp, with its fixed :8080 replaced by $LISTEN via an overlay (the tree is untouched).
 	idpSrc := filepath.Join(src, "deploy/compose/mockidp/main.go")
 	orig, err := os.ReadFile(idpSrc) //nolint:gosec // path under the configured Halos checkout
 	if err != nil {
 		return stop, err
 	}
-	if !strings.Contains(string(orig), `Addr: ":8080"`) {
-		return stop, fmt.Errorf("mockidp no longer hard-codes :8080; drop the overlay in acc_test.go")
+	if !strings.Contains(string(orig), `"LISTEN"`) {
+		return stop, fmt.Errorf("HALOS_SRC's mockidp has no LISTEN setting (Halos PR #93, fb7cc38 or later)")
 	}
-	patched := filepath.Join(dir, "mockidp-main.go")
-	if err := os.WriteFile(patched, []byte(strings.Replace(string(orig), `Addr: ":8080"`, `Addr: os.Getenv("LISTEN")`, 1)), 0o600); err != nil {
-		return stop, err
-	}
-	overlay := filepath.Join(dir, "overlay.json")
-	if err := os.WriteFile(overlay, []byte(fmt.Sprintf(`{"Replace":{%q:%q}}`, idpSrc, patched)), 0o600); err != nil {
-		return stop, err
-	}
-	if err := build(src, idpBin, "./deploy/compose/mockidp", "-overlay", overlay); err != nil {
+	if err := build(src, idpBin, "./deploy/compose/mockidp"); err != nil {
 		return stop, err
 	}
 

@@ -72,18 +72,15 @@ jobs:
         with:
           tofu_version: ${{ env.OPENTOFU_VERSION }}
           tofu_wrapper: false
-      - name: build halo-server
-        run: |
-          git clone --depth 1 --branch "$HALOS_REF" https://github.com/dshakes/halos.git "$RUNNER_TEMP/halos"
-          (cd "$RUNNER_TEMP/halos" && go build -o "$RUNNER_TEMP/halo-server" ./cmd/halo-server)
-      - name: acceptance tests (OpenTofu)
+      - name: check out Halos (halo-server and the mock IdP are built from it by the tests)
+        run: git clone --depth 1 --branch "$HALOS_REF" https://github.com/dshakes/halos.git "$RUNNER_TEMP/halos"
+      - name: acceptance tests (OpenTofu, real OIDC login, real service tokens)
         env:
           TF_ACC: "1"
-          TF_ACC_TERRAFORM_PATH: /usr/local/bin/tofu
           TF_ACC_PROVIDER_HOST: registry.opentofu.org
           TF_ACC_PROVIDER_NAMESPACE: hashicorp
         run: |
-          export HALOS_SERVER_BIN="$RUNNER_TEMP/halo-server"
-          export HALOS_POLICY_DIR="$RUNNER_TEMP/halos/examples/acme-corp"
-          export TF_ACC_TERRAFORM_PATH="$(command -v tofu)"
+          export HALOS_SRC="$RUNNER_TEMP/halos"
+          TF_ACC_TERRAFORM_PATH="$(command -v tofu)"
+          export TF_ACC_TERRAFORM_PATH
           go test -race -count=1 -v ./internal/provider/

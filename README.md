@@ -93,18 +93,18 @@ Acceptance tests (`TF_ACC=1`) drive the provider through OpenTofu or Terraform a
 ```sh
 export TF_ACC=1 TF_ACC_TERRAFORM_PATH=$(command -v tofu)
 export TF_ACC_PROVIDER_HOST=registry.opentofu.org TF_ACC_PROVIDER_NAMESPACE=hashicorp   # OpenTofu only
-export HALOS_SERVER_BIN=/path/to/halo-server
-export HALOS_POLICY_DIR=/path/to/halos/examples/acme-corp
+export HALOS_SRC=/path/to/halos   # default /Users/shakes/workspace/halos
 go test -race -count=1 -v ./internal/provider/
 ```
 
-The test server runs with `--dev-insecure-user`: authentication is off and every request acts as an admin. That is the only
-way to get an interactive admin without an OIDC provider, so the acceptance run does not exercise the server's bearer-token
-and session checks. The unit tests (httptest fake) cover what the provider sends on the wire.
+The tests build `halo-server` and the demo mock IdP (`deploy/compose/mockidp`) from `HALOS_SRC` (a read-only Halos checkout),
+run `halo-server` with real authentication pointed at the mock IdP, log in through the OIDC authorization-code flow with a
+cookie jar to get a real admin session, and use it to mint a real admin and a real viewer `halo_sat_` token. The provider then
+runs with token plus session, as documented. (Break-glass cannot stand in: halo-server refuses to create tokens for it.)
+mockidp hard-codes `:8080`, so the tests build it with `go build -overlay` swapping only that address for `$LISTEN`.
 
-Break-glass (ADR-0036) gives a real admin session without an IdP, but halo-server refuses to create a token for it
-(`403 ... not a break-glass`), so no real `halo_sat_` token can be minted in a test without a fake OIDC provider.
-Real-auth acceptance of bearer tokens is therefore not covered.
+Real-auth cases: garbage and revoked tokens get 401, a viewer token gets 403 on list, revoke and create, and token plus
+session behave as above (create uses the session, everything else the token).
 
 ## Known API gaps (Halos side)
 

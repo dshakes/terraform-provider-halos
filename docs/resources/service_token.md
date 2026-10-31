@@ -7,6 +7,7 @@ description: |-
   Every argument forces a new token, because a token cannot be edited; destroying the resource revokes it.
   ~> The secret is stored in Terraform state. token is returned by halo-server exactly once, at create, and Terraform has to keep it to be useful. Use an encrypted remote backend (or OpenTofu state encryption) and restrict who can read state. Marking it sensitive only hides it from CLI output. An imported token has no token value: the secret cannot be read back.
   ~> Creating needs an interactive session. halo-server only lets a signed-in human create tokens (a token cannot mint its successor), so the provider needs session (or HALO_SESSION) for create. Refresh, import and destroy work with a service token.
+  ~> Orphan recovery. If the connection drops after halo-server stored the token but before the response arrived, Terraform has no id in state and the next apply creates a second token. To recover: list tokens (halo service-token list, or GET /api/v1/service-tokens), find the one with your name and no matching state entry, then either revoke it (halo service-token revoke <id>) or adopt it with terraform import halos_service_token.<name> <id> (its secret is lost either way, so revoke and recreate if you need the secret). Re-run the apply.
 ---
 
 # halos_service_token (Resource)
@@ -18,6 +19,8 @@ Every argument forces a new token, because a token cannot be edited; destroying 
 ~> **The secret is stored in Terraform state.** `token` is returned by halo-server exactly once, at create, and Terraform has to keep it to be useful. Use an encrypted remote backend (or OpenTofu state encryption) and restrict who can read state. Marking it sensitive only hides it from CLI output. An imported token has no `token` value: the secret cannot be read back.
 
 ~> **Creating needs an interactive session.** halo-server only lets a signed-in human create tokens (a token cannot mint its successor), so the provider needs `session` (or `HALO_SESSION`) for create. Refresh, import and destroy work with a service token.
+
+~> **Orphan recovery.** If the connection drops after halo-server stored the token but before the response arrived, Terraform has no id in state and the next apply creates a second token. To recover: list tokens (`halo service-token list`, or `GET /api/v1/service-tokens`), find the one with your `name` and no matching state entry, then either revoke it (`halo service-token revoke <id>`) or adopt it with `terraform import halos_service_token.<name> <id>` (its secret is lost either way, so revoke and recreate if you need the secret). Re-run the apply.
 
 ## Example Usage
 

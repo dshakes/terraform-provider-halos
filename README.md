@@ -102,6 +102,10 @@ The test server runs with `--dev-insecure-user`: authentication is off and every
 way to get an interactive admin without an OIDC provider, so the acceptance run does not exercise the server's bearer-token
 and session checks. The unit tests (httptest fake) cover what the provider sends on the wire.
 
+Break-glass (ADR-0036) gives a real admin session without an IdP, but halo-server refuses to create a token for it
+(`403 ... not a break-glass`), so no real `halo_sat_` token can be minted in a test without a fake OIDC provider.
+Real-auth acceptance of bearer tokens is therefore not covered.
+
 ## Known API gaps (Halos side)
 
 - No `GET /api/v1/service-tokens/{id}`: read lists every token and matches by id.

@@ -5,7 +5,7 @@ Terraform / OpenTofu provider for [Halos](https://github.com/dshakes/halos), the
 It manages the **server-side state of halo-server that is not policy-as-code**: service-account API tokens
 ([ADR-0036](https://github.com/dshakes/halos), scoped by ADR-0037). It also exposes read-only data sources for status.
 
-> Status: v0.1.0 on the [Terraform Registry](https://registry.terraform.io/providers/dshakes/halos) (`source = "dshakes/halos"`); OpenTofu registry listing pending.
+> Status: v0.1.0 on the [Terraform Registry](https://registry.terraform.io/providers/dshakes/halos) (`source = "dshakes/halos"`) and the [OpenTofu Registry](https://search.opentofu.org/provider/dshakes/halos) (same `source`).
 
 ## Scope, and what is left out on purpose
 
